@@ -340,6 +340,11 @@
             <span id="userBadge" style="font-size:12px; background:rgba(255,255,255,0.1); padding:6px 12px; border-radius:20px;">👤 檢視者</span>
             <span style="font-size:14px; font-weight:bold; color:var(--text-main);">資料庫：</span>
             <select id="tableSelect" onchange="handleTableSelectChange()" class="btn" style="width:150px;" title="選擇資料表"></select>
+
+<!-- 新增的查詢庫存按鈕 -->
+            <a href="https://mingfonglpg-bit.github.io/-/count1.html" target="_blank" style="text-decoration:none;">
+                <button type="button" class="btn-main" style="background:#2563eb;">🔍 查詢庫存</button>
+            </a>
             <button id="netStatusBtn" onclick="toggleNetworkMode()" class="btn-main" style="background:#10b981;">🌐 線上模式</button>
             <button onclick="fetchData()" class="btn-main" style="background:#334155;">🔄 刷新</button>
             <button id="backendSettingsBtn" onclick="openBackendSettings()" class="btn-main" style="background:#4338ca;">☁️ 資料服務</button>
