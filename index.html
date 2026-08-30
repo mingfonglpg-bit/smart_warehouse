@@ -340,6 +340,11 @@
             <span id="userBadge" style="font-size:12px; background:rgba(255,255,255,0.1); padding:6px 12px; border-radius:20px;">👤 檢視者</span>
             <span style="font-size:14px; font-weight:bold; color:var(--text-main);">資料庫：</span>
             <select id="tableSelect" onchange="handleTableSelectChange()" class="btn" style="width:150px;" title="選擇資料表"></select>
+
+<!-- 新增的查詢庫存按鈕 -->
+            <a href="https://mingfonglpg-bit.github.io/-/count1.html" target="_blank" style="text-decoration:none;">
+                <button type="button" class="btn-main" style="background:#2563eb;">🔍 查詢庫存</button>
+            </a>
             <button id="netStatusBtn" onclick="toggleNetworkMode()" class="btn-main" style="background:#10b981;">🌐 線上模式</button>
             <button onclick="fetchData()" class="btn-main" style="background:#334155;">🔄 刷新</button>
             <button id="backendSettingsBtn" onclick="openBackendSettings()" class="btn-main" style="background:#4338ca;">☁️ 資料服務</button>
@@ -348,6 +353,7 @@
             <button id="userManageBtn" onclick="openUserManageModal()" class="btn-main" style="display:none; background:#7c2d12;">👥 使用者管理</button>
             <button id="submitApplicationBtn" onclick="openSubmitApplicationModal()" class="btn-main" style="display:none; background:#7c3aed;">📝 提交申請</button>
             <button id="applicationReviewBtn" onclick="openApplicationReviewModal()" class="btn-main" style="display:none; background:#f59e0b; position:relative;">📋 申請審核<span id="applicationPendingBadge" style="display:none; position:absolute; top:-6px; right:-6px; background:var(--danger); color:#fff; font-size:10px; padding:1px 5px; border-radius:10px;">0</span></button>
+            <button id="hotzoneBtn" onclick="openHotzoneModal()" class="btn-main" style="display:none; background:#be123c;">🔥 庫位熱區分析</button>
             <button onclick="handleLogout()" class="btn-main" style="background:var(--danger);">🚪 登出</button>
         </div>
     </header>
@@ -426,7 +432,7 @@
 
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 <input type="text" id="searchInput" class="btn" style="flex:1; min-width:220px;" placeholder="🔍 請輸入關鍵字搜尋 (產品名稱、批號、庫位...)" oninput="handleSearchInput()">
-                <button onclick="exportToExcel()" class="btn-main" style="background:#10b981; white-space:nowrap;">📥 一鍵匯出當前搜尋結果 (.XLSX)</button>
+                <button onclick="exportToExcel()" id="exportExcelBtn" class="btn-main" style="background:#10b981; white-space:nowrap;">📥 一鍵匯出當前搜尋結果 (.XLSX)</button>
             </div>
 
             <!-- 手機/平板專用排序工具：桌機版用表頭點擊排序，但手機版表頭是隱藏的（卡片化呈現），
@@ -613,6 +619,35 @@
     </div>
 </div>
 
+<!-- 庫位熱區分析彈窗 -->
+<div id="hotzoneModal" class="modal">
+    <div class="modal-content" style="max-width:720px; max-height:85vh; overflow-y:auto;">
+        <button class="modal-close-btn" onclick="closeModal('hotzoneModal')">✖</button>
+        <h3 style="margin-top:0;">🔥 庫位熱區分析</h3>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+            <label style="font-size:13px; color:var(--text-dim);">統計區間：</label>
+            <select id="hotzoneDaysSelect" class="btn" onchange="refreshHotzoneModal()">
+                <option value="7">近 7 天</option>
+                <option value="30" selected>近 30 天</option>
+                <option value="90">近 90 天</option>
+                <option value="365">近 1 年</option>
+            </select>
+            <button class="btn-main" style="background:#334155;" onclick="refreshHotzoneModal()">🔄 重新整理</button>
+            <span id="hotzoneLogCount" style="font-size:12px; color:var(--text-dim);"></span>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+            <button id="hotzoneTabBtn-rank" class="btn-main" style="background:var(--primary);" onclick="switchHotzoneTab('rank')">📊 庫位排行</button>
+            <button id="hotzoneTabBtn-search" class="btn-main" style="background:#475569;" onclick="switchHotzoneTab('search')">🔍 熱門搜尋</button>
+            <button id="hotzoneTabBtn-suggest" class="btn-main" style="background:#475569;" onclick="switchHotzoneTab('suggest')">💡 建議排庫位</button>
+        </div>
+
+        <div id="hotzoneTab-rank"></div>
+        <div id="hotzoneTab-search" style="display:none;"></div>
+        <div id="hotzoneTab-suggest" style="display:none;"></div>
+    </div>
+</div>
+
 <!-- 區域管理彈窗 -->
 <div id="zoneManageModal" class="modal">
     <div class="modal-content">
@@ -788,11 +823,14 @@
 
     async function gsRequest(action, payload) {
         if (!GS_BACKEND.apiUrl) throw new Error('尚未設定 Google 試算表 API 網址');
+        // 【安全性修補】自動附上登入時取得的 session token，供後端 authorizeAction() 驗證身分與角色，
+        // 避免異動性操作（新增/編輯/刪除庫存、審核申請等）在沒有登入的情況下就能被呼叫。
+        const authedPayload = Object.assign({ action, token: (currentUser && currentUser.token) || undefined }, payload);
         const res = await fetch(GS_BACKEND.apiUrl, {
             method: 'POST',
             // 用 text/plain 避免瀏覽器對 Apps Script 發出 CORS 預檢請求（Apps Script 不處理 OPTIONS）
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(Object.assign({ action }, payload))
+            body: JSON.stringify(authedPayload)
         });
         const json = await res.json();
         if (!json || json.success === false) throw new Error((json && json.error) || 'Google 試算表後端發生錯誤');
@@ -823,6 +861,273 @@
         if (isGsMode()) { await gsRequest('deleteInventory', { table, id }); return; }
         const { error } = await supabaseClient.from(table).delete().eq('id', id);
         if (error) throw error;
+    }
+
+    /* ---- 使用行為紀錄層（庫位點擊 / 搜尋關鍵字），供「庫位熱區分析」統計使用 ----
+       僅在 Supabase 模式下才會同步雲端（Google 試算表模式不支援，會靜默略過）；
+       同時保留一份本機備援紀錄，離線或雲端寫入失敗時，熱區分析仍可用本機資料呈現。 */
+    function getUsageLogLocalKey() { return 'warehouse_usage_logs_' + CURRENT_TABLE; }
+    function loadLocalUsageLogs() {
+        try { return JSON.parse(localStorage.getItem(getUsageLogLocalKey()) || '[]'); }
+        catch (e) { return []; }
+    }
+    function saveLocalUsageLogs(logs) {
+        // 本機備援僅保留最近 1000 筆，避免無限增長
+        const trimmed = logs.slice(-1000);
+        localStorage.setItem(getUsageLogLocalKey(), JSON.stringify(trimmed));
+    }
+    async function logUsageEvent(eventType, extra) {
+        const entry = Object.assign({
+            table_name: CURRENT_TABLE,
+            event_type: eventType,
+            username: (currentUser && currentUser.username) || '',
+            created_at: new Date().toISOString()
+        }, extra);
+
+        const local = loadLocalUsageLogs();
+        local.push(entry);
+        saveLocalUsageLogs(local);
+
+        if (supabaseClient && !isGsMode() && !isOfflineMode) {
+            try {
+                await supabaseClient.from('warehouse_usage_logs').insert([entry]);
+            } catch (err) {
+                // 雲端紀錄失敗不影響一般操作，僅記在主控台方便排查
+                console.warn('使用行為紀錄同步雲端失敗（不影響其他功能）：', err.message || err);
+            }
+        }
+    }
+    async function fetchUsageLogs(days) {
+        const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+        if (supabaseClient && !isGsMode() && !isOfflineMode) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('warehouse_usage_logs')
+                    .select('*')
+                    .eq('table_name', CURRENT_TABLE)
+                    .gte('created_at', cutoff)
+                    .order('created_at', { ascending: false })
+                    .limit(5000);
+                if (error) throw error;
+                return data || [];
+            } catch (err) {
+                console.warn('讀取雲端使用紀錄失敗，改用本機備援資料：', err.message || err);
+            }
+        }
+        return loadLocalUsageLogs().filter(l => l.created_at >= cutoff);
+    }
+
+    /* ==================== 庫位熱區分析 ==================== */
+    let HOTZONE_LOGS = [];
+    let HOTZONE_ACTIVE_TAB = 'rank';
+
+    async function openHotzoneModal() {
+        document.getElementById('hotzoneModal').style.display = 'flex';
+        await refreshHotzoneModal();
+    }
+
+    async function refreshHotzoneModal() {
+        const days = Number(document.getElementById('hotzoneDaysSelect').value || 30);
+        document.getElementById('hotzoneLogCount').innerText = '讀取中...';
+        HOTZONE_LOGS = await fetchUsageLogs(days);
+        document.getElementById('hotzoneLogCount').innerText = `共 ${HOTZONE_LOGS.length} 筆紀錄`;
+        renderHotzoneRank();
+        renderHotzoneSearch();
+        renderHotzoneSuggestions();
+    }
+
+    function switchHotzoneTab(tab) {
+        HOTZONE_ACTIVE_TAB = tab;
+        ['rank', 'search', 'suggest'].forEach(t => {
+            document.getElementById('hotzoneTab-' + t).style.display = (t === tab) ? 'block' : 'none';
+            document.getElementById('hotzoneTabBtn-' + t).style.background = (t === tab) ? 'var(--primary)' : '#475569';
+        });
+    }
+
+    function getSlotLabel(zone, floor, pos) { return `${zone} ${floor}-${pos}`; }
+
+    // 依 (zone, floor, pos) 彙總「庫位點擊次數」
+    function aggregateSlotClicks(logs) {
+        const map = {};
+        logs.filter(l => l.event_type === 'slot_click').forEach(l => {
+            const key = getSlotColorKey(l.zone, l.floor, l.pos);
+            if (!map[key]) map[key] = { zone: l.zone, floor: l.floor, pos: Number(l.pos), count: 0 };
+            map[key].count++;
+        });
+        return Object.values(map).sort((a, b) => b.count - a.count);
+    }
+
+    // 彙總「搜尋關鍵字」次數
+    function aggregateSearchKeywords(logs) {
+        const map = {};
+        logs.filter(l => l.event_type === 'search' && l.keyword).forEach(l => {
+            const k = l.keyword;
+            map[k] = (map[k] || 0) + 1;
+        });
+        return Object.entries(map).map(([keyword, count]) => ({ keyword, count })).sort((a, b) => b.count - a.count);
+    }
+
+    function renderHotzoneRank() {
+        const el = document.getElementById('hotzoneTab-rank');
+        const ranked = aggregateSlotClicks(HOTZONE_LOGS);
+        if (!ranked.length) {
+            el.innerHTML = '<p style="color:var(--text-dim);">此期間尚無庫位點擊紀錄。</p>';
+            return;
+        }
+        const max = ranked[0].count;
+        el.innerHTML = '<div style="display:flex; flex-direction:column; gap:8px;">' +
+            ranked.slice(0, 30).map((r, idx) => {
+                const pct = Math.max(6, Math.round((r.count / max) * 100));
+                return `<div style="display:flex; align-items:center; gap:10px;">
+                    <span style="width:24px; color:var(--text-dim); font-size:12px;">#${idx + 1}</span>
+                    <span style="width:150px; font-size:13px;">📍 ${getSlotLabel(r.zone, r.floor, r.pos)}</span>
+                    <div style="flex:1; background:rgba(255,255,255,0.06); border-radius:6px; overflow:hidden; height:16px;">
+                        <div style="width:${pct}%; height:100%; background:linear-gradient(90deg,#f59e0b,#ef4444);"></div>
+                    </div>
+                    <span style="width:50px; text-align:right; font-size:13px; font-weight:bold;">${r.count} 次</span>
+                </div>`;
+            }).join('') + '</div>';
+    }
+
+    function renderHotzoneSearch() {
+        const el = document.getElementById('hotzoneTab-search');
+        const ranked = aggregateSearchKeywords(HOTZONE_LOGS);
+        if (!ranked.length) {
+            el.innerHTML = '<p style="color:var(--text-dim);">此期間尚無搜尋紀錄。</p>';
+            return;
+        }
+        const max = ranked[0].count;
+        el.innerHTML = '<div style="display:flex; flex-direction:column; gap:8px;">' +
+            ranked.slice(0, 30).map((r, idx) => {
+                const pct = Math.max(6, Math.round((r.count / max) * 100));
+                return `<div style="display:flex; align-items:center; gap:10px;">
+                    <span style="width:24px; color:var(--text-dim); font-size:12px;">#${idx + 1}</span>
+                    <span style="width:150px; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🔍 ${escapeHtml(r.keyword)}</span>
+                    <div style="flex:1; background:rgba(255,255,255,0.06); border-radius:6px; overflow:hidden; height:16px;">
+                        <div style="width:${pct}%; height:100%; background:linear-gradient(90deg,#38bdf8,#818cf8);"></div>
+                    </div>
+                    <span style="width:50px; text-align:right; font-size:13px; font-weight:bold;">${r.count} 次</span>
+                </div>`;
+            }).join('') + '</div>';
+    }
+
+    /* 建議排庫位邏輯：
+       - 「易取樓層」＝該區域樓層編號最小的樓層（假設樓層數字越小越靠近地面／出入口，越好搬）。
+       - 找出「熱門但目前在較高樓層」的品項，與「冷門但目前佔用易取樓層」的品項配對，
+         建議互換位置，讓熱門品項搬到最容易取放的庫位。
+       - 這裡只產生建議清單，實際庫位資料要按下「套用」才會更動，且僅記錄系統中的庫位欄位，
+         實際貨物仍需人工依建議搬動（本系統無自動化搬運設備）。 */
+    function computeSlotSuggestions() {
+        const clickMap = {};
+        aggregateSlotClicks(HOTZONE_LOGS).forEach(r => {
+            clickMap[getSlotColorKey(r.zone, r.floor, r.pos)] = r.count;
+        });
+
+        // 依區域找出最小樓層數字（易取樓層）
+        const minFloorByZone = {};
+        inventory.forEach(it => {
+            const z = it.zone;
+            const f = normalizeVisualFloor(it.floor);
+            if (minFloorByZone[z] === undefined || f < minFloorByZone[z]) minFloorByZone[z] = f;
+        });
+
+        const itemsWithScore = inventory
+            .filter(it => it.zone && it.floor != null && it.pos != null)
+            .map(it => {
+                const f = normalizeVisualFloor(it.floor);
+                const key = getSlotColorKey(it.zone, it.floor, it.pos);
+                return {
+                    item: it,
+                    floor: f,
+                    isEasyFloor: f === minFloorByZone[it.zone],
+                    clicks: clickMap[key] || 0
+                };
+            });
+
+        // 熱門但不在易取樓層，依點擊數由高到低排序
+        const hotButHard = itemsWithScore
+            .filter(x => !x.isEasyFloor && x.clicks > 0)
+            .sort((a, b) => b.clicks - a.clicks);
+
+        // 冷門（含 0 次）且目前佔用易取樓層，依點擊數由低到高排序
+        const coldButEasy = itemsWithScore
+            .filter(x => x.isEasyFloor)
+            .sort((a, b) => a.clicks - b.clicks);
+
+        const suggestions = [];
+        const usedCold = new Set();
+        hotButHard.forEach(hot => {
+            if (suggestions.length >= 15) return;
+            const cold = coldButEasy.find(c => !usedCold.has(c.item.id) && c.clicks < hot.clicks && c.item.id !== hot.item.id);
+            if (cold) {
+                usedCold.add(cold.item.id);
+                suggestions.push({ hot, cold });
+            }
+        });
+        return suggestions;
+    }
+
+    function renderHotzoneSuggestions() {
+        const el = document.getElementById('hotzoneTab-suggest');
+        const suggestions = computeSlotSuggestions();
+        const canApply = currentUser && currentUser.role === 'admin';
+        if (!suggestions.length) {
+            el.innerHTML = '<p style="color:var(--text-dim);">目前沒有明顯需要調整的庫位（可能資料量太少，或熱門品項已在易取樓層）。</p>';
+            return;
+        }
+        el.innerHTML = `<p style="font-size:12px; color:var(--text-dim); margin-top:0;">
+                建議把「常被查看、但放在較高樓層」的品項，與「較少被查看、卻佔用易取樓層（樓層數字最小）」的品項互換庫位。${canApply ? '' : '（僅管理員可套用）'}
+            </p>` +
+            '<div style="display:flex; flex-direction:column; gap:10px;">' +
+            suggestions.map((s, idx) => `
+                <div style="border:1px solid var(--border); border-radius:12px; padding:10px 12px; background:rgba(255,255,255,0.03);">
+                    <div style="font-size:13px; margin-bottom:6px;">
+                        🔥 <b>${escapeHtml(s.hot.item.name || '(未命名)')}</b>　目前在 ${getSlotLabel(s.hot.item.zone, s.hot.item.floor, s.hot.item.pos)}（樓層較高，被查看 ${s.hot.clicks} 次）
+                    </div>
+                    <div style="font-size:13px; margin-bottom:8px;">
+                        🧊 <b>${escapeHtml(s.cold.item.name || '(未命名)')}</b>　目前在 ${getSlotLabel(s.cold.item.zone, s.cold.item.floor, s.cold.item.pos)}（易取樓層，被查看 ${s.cold.clicks} 次）
+                    </div>
+                    ${canApply
+                        ? `<button class="btn-main admin-edit-btn" style="font-size:12px; padding:6px 10px;" onclick="applySlotSuggestion('${s.hot.item.id}','${s.cold.item.id}', this)">✅ 套用（互換這兩個庫位）</button>`
+                        : ''}
+                </div>
+            `).join('') + '</div>';
+    }
+
+    // 套用建議：交換兩個品項的 zone/floor/pos。系統資料會即刻更新，
+    // 實際貨物搬動仍需人工依建議進行（沒有自動化搬運設備）。
+    async function applySlotSuggestion(idA, idB, btnEl) {
+        if (!currentUser || currentUser.role !== 'admin') return;
+        const itemA = inventory.find(x => String(x.id) === String(idA));
+        const itemB = inventory.find(x => String(x.id) === String(idB));
+        if (!itemA || !itemB) { showToast('⚠️ 找不到對應的品項，可能資料已變動，請重新整理'); return; }
+
+        if (!confirm(`確定要將「${itemA.name}」與「${itemB.name}」的庫位互換嗎？\n請確認實際貨物也依此搬動。`)) return;
+
+        if (btnEl) { btnEl.disabled = true; btnEl.innerText = '處理中...'; }
+        document.getElementById('loader').style.display = 'flex';
+        try {
+            const aSlot = { zone: itemA.zone, floor: itemA.floor, pos: itemA.pos };
+            const bSlot = { zone: itemB.zone, floor: itemB.floor, pos: itemB.pos };
+
+            if (isCloudConnected()) {
+                await backendUpdateItem(getTableName(), itemA.id, bSlot);
+                await backendUpdateItem(getTableName(), itemB.id, aSlot);
+            }
+            Object.assign(itemA, bSlot);
+            Object.assign(itemB, aSlot);
+            localStorage.setItem(getLocalCacheKey(), JSON.stringify(inventory));
+
+            showToast('✅ 庫位已互換並同步');
+            renderVisual();
+            renderTable();
+            renderHotzoneSuggestions();
+        } catch (err) {
+            alert('套用失敗：' + (err.message || err));
+            if (btnEl) { btnEl.disabled = false; btnEl.innerText = '✅ 套用（互換這兩個庫位）'; }
+        } finally {
+            document.getElementById('loader').style.display = 'none';
+        }
     }
 
     /* ---- 申請資料存取層 ---- */
@@ -964,6 +1269,7 @@
     let selectedItemIds = new Set();
 
     function toggleBatchMode() {
+        if (currentUser.role === 'guest') { alert('訪客身份僅能瀏覽，無法使用批次管理功能'); return; }
         batchMode = !batchMode;
         selectedItemIds.clear();
         document.getElementById('batchModeBtn').style.background = batchMode ? '#a855f7' : '#7c3aed';
@@ -1002,6 +1308,7 @@
     }
 
     async function batchDeleteSelected() {
+        if (currentUser.role === 'guest') { alert('訪客身份僅能瀏覽，無法執行此操作'); return; }
         if (selectedItemIds.size === 0) { alert('請先勾選要刪除的商品'); return; }
         const ids = Array.from(selectedItemIds);
 
@@ -1043,6 +1350,7 @@
     }
 
     function openBatchMoveModal() {
+        if (currentUser.role === 'guest') { alert('訪客身份僅能瀏覽，無法執行此操作'); return; }
         if (selectedItemIds.size === 0) { alert('請先勾選要移庫的商品'); return; }
         document.getElementById('batchMoveCount').innerText = selectedItemIds.size;
         document.getElementById('batchMovePos').value = '';
@@ -1050,6 +1358,7 @@
     }
 
     async function confirmBatchMove() {
+        if (currentUser.role === 'guest') { alert('訪客身份僅能瀏覽，無法執行此操作'); return; }
         const zone = document.getElementById('batchMoveZone').value;
         const floor = document.getElementById('batchMoveFloor').value;
         const posRaw = document.getElementById('batchMovePos').value.trim();
@@ -1101,6 +1410,7 @@
     }
 
     function openBatchEditModal() {
+        if (currentUser.role === 'guest') { alert('訪客身份僅能瀏覽，無法執行此操作'); return; }
         if (selectedItemIds.size === 0) { alert('請先勾選要編輯的商品'); return; }
         document.getElementById('batchEditCount').innerText = selectedItemIds.size;
         document.getElementById('batchEditStatus').value = '';
@@ -1109,6 +1419,7 @@
     }
 
     async function confirmBatchEdit() {
+        if (currentUser.role === 'guest') { alert('訪客身份僅能瀏覽，無法執行此操作'); return; }
         const statusVal = document.getElementById('batchEditStatus').value.trim();
         const noteVal = document.getElementById('batchEditNote').value.trim();
         if (!statusVal && !noteVal) { alert('請至少填寫一個要變更的欄位'); return; }
@@ -1749,7 +2060,7 @@
                 document.getElementById('loader').style.display = 'flex';
                 const json = await gsRequest('login', { username: u, password: p });
                 if (!json.success) throw new Error(json.error || '登入失敗');
-                currentUser = { username: json.username, role: json.role };
+                currentUser = { username: json.username, role: json.role, token: json.token };
                 sessionStorage.setItem('warehouse_user', JSON.stringify(currentUser));
                 document.getElementById('authModal').style.display = 'none';
                 if (json.firstAdmin) alert('✅ 這是第一組帳密，已自動設為系統管理員。');
@@ -1797,7 +2108,7 @@
                 document.getElementById('loader').style.display = 'flex';
                 const json = await gsRequest('register', { username: u, password: p, role: selectedRole });
                 if (!json.success) throw new Error(json.error || '註冊失敗');
-                currentUser = { username: json.username, role: json.role };
+                currentUser = { username: json.username, role: json.role, token: json.token };
                 sessionStorage.setItem('warehouse_user', JSON.stringify(currentUser));
                 document.getElementById('authModal').style.display = 'none';
                 alert(json.role === 'admin' ? '✅ 第一位系統管理員建立完成。' : '✅ 帳號建立成功，已登入。');
@@ -1961,8 +2272,11 @@
         document.getElementById('gsBackendBtn').style.display = currentUser.role === 'admin' ? 'inline-flex' : 'none';
         document.getElementById('userManageBtn').style.display = (currentUser.role === 'admin' && isGsMode()) ? 'inline-flex' : 'none';
         document.getElementById('favColorBtn').style.display = currentUser.role === 'guest' ? 'none' : 'inline-flex';
+        document.getElementById('batchModeBtn').style.display = currentUser.role === 'guest' ? 'none' : 'inline-flex';
+        document.getElementById('exportExcelBtn').style.display = currentUser.role === 'guest' ? 'none' : 'inline-flex';
         document.getElementById('submitApplicationBtn').style.display = currentUser.role !== 'guest' ? 'inline-flex' : 'none';
         document.getElementById('applicationReviewBtn').style.display = currentUser.role === 'admin' ? 'inline-flex' : 'none';
+        document.getElementById('hotzoneBtn').style.display = currentUser.role !== 'guest' ? 'inline-flex' : 'none';
         document.getElementById('tableSelect').disabled = currentUser.role === 'guest';
 
         loadSlotColorOverrides();
@@ -2149,6 +2463,7 @@
             saveSlotTimers();
             showToast(`✅ 已停止 [${zone} ${floor}-${pos}] 的計時提醒`);
         }
+        logUsageEvent('slot_click', { zone, floor: String(floor), pos: Number(pos) });
         selectSlotFilter(zone, floor, pos, { force: true, scroll: true });
     }
 
@@ -2386,10 +2701,20 @@
         document.getElementById('filter60').classList.toggle('active', activeExpFilter?.min === 31 && activeExpFilter?.max === 60);
     }
 
+    let searchLogDebounceTimer = null;
     function handleSearchInput() {
         searchQuery = document.getElementById('searchInput').value.trim().toLowerCase();
         currentPage = 1;
         renderTable();
+
+        // 搜尋關鍵字紀錄：等使用者停止輸入 900ms 後才記一筆，避免每敲一個字就寫入一次
+        clearTimeout(searchLogDebounceTimer);
+        const keyword = searchQuery;
+        if (keyword.length >= 2) {
+            searchLogDebounceTimer = setTimeout(() => {
+                logUsageEvent('search', { keyword });
+            }, 900);
+        }
     }
 
     /* ============ 核心修復：針對「熟成時間 / 熟成到期日」進行倒數計算 ============ */
@@ -2500,6 +2825,7 @@
 
     /* 一鍵匯出搜尋結果 .XLSX */
     function exportToExcel() {
+        if (currentUser.role === 'guest') { alert('訪客身份僅能瀏覽，無法使用匯出功能'); return; }
         const dataToExport = getFilteredInventory();
         if (!dataToExport.length) {
             alert('當前無可匯出的搜尋結果資料！');
