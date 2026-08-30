@@ -885,7 +885,15 @@
         local.push(entry);
         saveLocalUsageLogs(local);
 
-        if (supabaseClient && !isGsMode() && !isOfflineMode) {
+        if (isGsMode()) {
+            try {
+                await gsRequest('logUsage', { entry });
+            } catch (err) {
+                console.warn('使用行為紀錄同步 Google 試算表失敗（不影響其他功能）：', err.message || err);
+            }
+            return;
+        }
+        if (supabaseClient && !isOfflineMode) {
             try {
                 await supabaseClient.from('warehouse_usage_logs').insert([entry]);
             } catch (err) {
@@ -896,7 +904,14 @@
     }
     async function fetchUsageLogs(days) {
         const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-        if (supabaseClient && !isGsMode() && !isOfflineMode) {
+        if (isGsMode()) {
+            try {
+                const json = await gsRequest('listUsage', { table: CURRENT_TABLE, since: cutoff });
+                return json.data || [];
+            } catch (err) {
+                console.warn('讀取 Google 試算表使用紀錄失敗，改用本機備援資料：', err.message || err);
+            }
+        } else if (supabaseClient && !isOfflineMode) {
             try {
                 const { data, error } = await supabaseClient
                     .from('warehouse_usage_logs')
@@ -1266,6 +1281,7 @@
     let selectedItemIds = new Set();
 
     function toggleBatchMode() {
+        if (!currentUser || currentUser.role === 'guest') return;
         batchMode = !batchMode;
         selectedItemIds.clear();
         document.getElementById('batchModeBtn').style.background = batchMode ? '#a855f7' : '#7c3aed';
@@ -1304,6 +1320,7 @@
     }
 
     async function batchDeleteSelected() {
+        if (!currentUser || currentUser.role === 'guest') return;
         if (selectedItemIds.size === 0) { alert('請先勾選要刪除的商品'); return; }
         const ids = Array.from(selectedItemIds);
 
@@ -1345,6 +1362,7 @@
     }
 
     function openBatchMoveModal() {
+        if (!currentUser || currentUser.role === 'guest') return;
         if (selectedItemIds.size === 0) { alert('請先勾選要移庫的商品'); return; }
         document.getElementById('batchMoveCount').innerText = selectedItemIds.size;
         document.getElementById('batchMovePos').value = '';
@@ -1352,6 +1370,7 @@
     }
 
     async function confirmBatchMove() {
+        if (!currentUser || currentUser.role === 'guest') return;
         const zone = document.getElementById('batchMoveZone').value;
         const floor = document.getElementById('batchMoveFloor').value;
         const posRaw = document.getElementById('batchMovePos').value.trim();
@@ -1403,6 +1422,7 @@
     }
 
     function openBatchEditModal() {
+        if (!currentUser || currentUser.role === 'guest') return;
         if (selectedItemIds.size === 0) { alert('請先勾選要編輯的商品'); return; }
         document.getElementById('batchEditCount').innerText = selectedItemIds.size;
         document.getElementById('batchEditStatus').value = '';
@@ -1411,6 +1431,7 @@
     }
 
     async function confirmBatchEdit() {
+        if (!currentUser || currentUser.role === 'guest') return;
         const statusVal = document.getElementById('batchEditStatus').value.trim();
         const noteVal = document.getElementById('batchEditNote').value.trim();
         if (!statusVal && !noteVal) { alert('請至少填寫一個要變更的欄位'); return; }
@@ -2266,6 +2287,14 @@
         document.getElementById('submitApplicationBtn').style.display = currentUser.role !== 'guest' ? 'inline-flex' : 'none';
         document.getElementById('applicationReviewBtn').style.display = currentUser.role === 'admin' ? 'inline-flex' : 'none';
         document.getElementById('hotzoneBtn').style.display = currentUser.role !== 'guest' ? 'inline-flex' : 'none';
+        const batchBtnEl = document.getElementById('batchModeBtn');
+        if (batchBtnEl) batchBtnEl.style.display = currentUser.role === 'guest' ? 'none' : 'inline-flex';
+        if (currentUser.role === 'guest' && batchMode) {
+            batchMode = false;
+            selectedItemIds.clear();
+            document.getElementById('batchCheckboxHeader').style.display = 'none';
+            document.getElementById('batchActionBar').style.display = 'none';
+        }
         document.getElementById('tableSelect').disabled = currentUser.role === 'guest';
 
         loadSlotColorOverrides();
