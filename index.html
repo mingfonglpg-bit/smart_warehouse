@@ -44,9 +44,11 @@
         .empty-count-badge { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 6px 14px; border-radius: 10px; font-size: 13px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px; }
         select.btn, input.btn, textarea.btn { background: var(--select-bg) !important; color: var(--select-text) !important; border: 1px solid var(--border); padding: 12px; border-radius: 12px; outline: none; width: 100%; font-size: 14px; font-family: inherit; }
         
-        .slot { aspect-ratio: 1; border-radius: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; gap: 2px; font-weight: bold; color: var(--text-main); position: relative; }
-        .slot span.count { font-size: 9px; opacity: 0.8; font-weight: normal; }
+        .slot { aspect-ratio: 1; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; font-size: 10px; gap: 1px; font-weight: bold; color: var(--text-main); position: relative; }
+        .slot span.count { font-size: 8px; opacity: 0.8; font-weight: normal; }
         .slot.occupied { color: white; }
+        .slot.empty { border: 1.5px dashed rgba(148, 163, 184, 0.45); background: rgba(255,255,255,0.015); }
+        .slot.empty .empty-add-label { font-size: 9px; font-weight: normal; color: var(--text-dim); margin-top: 1px; }
         .slot.active-slot { border: 2px solid #38bdf8; box-shadow: 0 0 12px rgba(56, 189, 248, 0.8); }
         .slot.timer-expired { animation: slotTimerFlash 1s infinite; }
         @keyframes slotTimerFlash {
@@ -59,7 +61,27 @@
 
         .admin-edit-btn { background: var(--edit) !important; color: #fff !important; }
         .marquee-edit-btn { position:absolute; right:10px; top:50%; transform:translateY(-50%); z-index:2; }
-        .visual-edit-btn { margin-top:2px; padding:1px 4px !important; font-size:9px !important; }
+        /* 手機板：只保留鉛筆圖示，拿掉背後的透明色塊，避免遮住格子內容 */
+        .visual-edit-btn {
+            position: absolute; bottom: 2px; right: 2px; z-index: 2;
+            width: auto; height: auto; padding: 0 !important; margin: 0 !important;
+            border-radius: 0 !important; background: transparent !important; border: none !important; box-shadow: none !important;
+            color: #fff !important; font-size: 11px !important; line-height: 1;
+            display: flex !important; align-items: center; justify-content: center;
+            text-shadow: 0 0 2px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.85);
+        }
+        .visual-edit-btn .visual-edit-label { display: none; }
+        /* 電腦板：鉛筆圖示旁加上「編輯」文字，並保留小色塊方便辨識與點擊 */
+        @media screen and (min-width: 769px) {
+            .visual-edit-btn {
+                bottom: 3px; right: 3px;
+                border-radius: 6px !important; background: rgba(0,0,0,0.45) !important;
+                padding: 2px 6px !important; font-size: 11px !important;
+                text-shadow: none;
+            }
+            .visual-edit-btn:hover { background: rgba(0,0,0,0.65) !important; }
+            .visual-edit-btn .visual-edit-label { display: inline; margin-left: 3px; }
+        }
         .table-switch-badge { font-size:11px; color:var(--text-dim); margin-left:8px; }
         .inventory-table-wrap { width:100%; overflow-x:auto; }
         .inventory-table-wrap.slot-focus-pulse { animation: slotFocusPulse 1.15s ease-out; }
@@ -116,7 +138,7 @@
             .marquee-edit-btn { font-size: 11px; padding: 6px 8px !important; }
 
             /* 新增入庫面板 / 編輯彈窗內的多欄表單，改為單欄 */
-            #admin-panel > div,
+            #adminPanelBody > div,
             #itemEditModal .modal-content > div,
             #editCustomFieldsContainer,
             #wizardStep2 > div,
@@ -129,8 +151,8 @@
             #vZone, #vFloor { width: auto !important; flex: 1 1 100px; }
 
             /* 庫位地圖格數配合小螢幕縮減 */
-            #visualGrid { grid-template-columns: repeat(5, 1fr) !important; gap: 6px !important; }
-            .slot { font-size: 10px; }
+            #visualGrid { grid-template-columns: repeat(6, 1fr) !important; gap: 5px !important; }
+            .slot { font-size: 9px; }
 
             /* 快速搜尋列：搜尋框與匯出按鈕各自獨立成行 */
             #searchInput { flex: 1 1 100% !important; min-width: 100% !important; }
@@ -196,8 +218,8 @@
             .container { padding: 10px; }
             header h2 { font-size: 1.05rem; }
             .btn-main { font-size: 12px; padding: 9px 12px; }
-            #visualGrid { grid-template-columns: repeat(4, 1fr) !important; gap: 5px !important; }
-            .slot { font-size: 9px; }
+            #visualGrid { grid-template-columns: repeat(5, 1fr) !important; gap: 4px !important; }
+            .slot { font-size: 8px; }
             .marquee-container { padding-right: 90px; font-size: 12px; }
             .modal-content { width: 94%; padding: 18px 14px; }
             .btn-filter { font-size: 11px; padding: 7px 8px; }
@@ -209,9 +231,78 @@
             .btn-main, .btn-filter, select.btn, input.btn { min-height: 42px; }
             th[onclick] { padding: 15px 12px; }
         }
+
+        /* ============ 新增入庫建檔面板：預設收合，僅留「+ 新品入庫」按鈕 ============ */
+        #adminPanelHeaderBar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; cursor: pointer; user-select: none; }
+        #adminPanelHeaderBar b { color: var(--primary); font-size: 15px; }
+        #adminPanelToggleHint { font-size: 12px; color: var(--text-dim); }
+        #adminPanelBody { margin-top: 16px; }
+
+        /* ============ 手機/平板左側收納式選單 ============ */
+        #mobileSideMenuToggle {
+            display: none; position: fixed; top: 50%; left: 0; transform: translateY(-50%);
+            z-index: 19500; background: rgba(6,182,212,0.5); color: #04222b; border: none;
+            padding: 9px 5px; border-radius: 0 10px 10px 0; font-size: 14px; cursor: pointer;
+            box-shadow: 1px 0 6px rgba(0,0,0,0.25); opacity: 0.6; backdrop-filter: blur(2px);
+            transition: opacity 0.2s, background 0.2s;
+        }
+        #mobileSideMenuToggle:active, #mobileSideMenuToggle:focus, #mobileSideMenuToggle:hover {
+            opacity: 1; background: var(--primary);
+        }
+        #mobileSideMenuOverlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            z-index: 19998;
+        }
+        #mobileSideMenu {
+            position: fixed; top: 0; left: -190px; width: 170px; height: 100%;
+            background: rgba(30, 41, 59, 0.82); backdrop-filter: blur(12px);
+            border-right: 1px solid var(--border);
+            z-index: 19999; transition: left 0.25s ease; padding: 55px 12px 14px;
+            display: flex; flex-direction: column; gap: 10px; box-shadow: 4px 0 20px rgba(0,0,0,0.4);
+        }
+        #mobileSideMenu.open { left: 0; }
+        #mobileSideMenu .side-menu-close { position: absolute; top: 12px; right: 12px; }
+        #mobileSideMenu a.btn-main, #mobileSideMenu button.btn-main { text-align: center; text-decoration: none; display: block; font-size: 12px; padding: 8px 6px; }
+        @media screen and (max-width: 900px) {
+            #mobileSideMenuToggle { display: block; }
+        }
+
+        /* ============ 庫存卡片（手機/平板）：預設合起，僅顯示儲位＋產品名稱 ============ */
+        @media screen and (max-width: 768px) {
+            tr.mobile-card { position: relative; cursor: pointer; padding-right: 30px; touch-action: pan-y; will-change: transform; }
+            tr.mobile-card.swiping { transition: none !important; }
+            /* 滑動提示：卡片右滑時，底下露出「隱藏」提示 */
+            tr.mobile-card::before {
+                content: '👉 隱藏'; position: absolute; inset: 0; z-index: -1;
+                display: flex; align-items: center; padding-left: 18px;
+                color: #fff; font-size: 13px; font-weight: bold;
+                background: linear-gradient(90deg, rgba(239,68,68,0.85), rgba(239,68,68,0.15));
+                border-radius: 16px; opacity: 0;
+            }
+            tr.mobile-card.swiping::before { opacity: 1; }
+            tr.mobile-card::after {
+                content: '▾'; position: absolute; top: 12px; right: 12px;
+                font-size: 13px; color: var(--text-dim);
+            }
+            tr.mobile-card.card-expanded::after { content: '▴'; }
+            tr.mobile-card td { display: none !important; }
+            tr.mobile-card td[data-label="選取"],
+            tr.mobile-card td[data-label="儲位位置"],
+            tr.mobile-card td[data-label="產品名稱"] { display: flex !important; }
+            tr.mobile-card.card-expanded td { display: flex !important; }
+        }
 </style>
 </head>
 <body>
+<!-- 手機/平板左側收納式選單 -->
+<button id="mobileSideMenuToggle" onclick="toggleMobileSideMenu()" title="選單">☰</button>
+<div id="mobileSideMenuOverlay" onclick="closeMobileSideMenu()"></div>
+<nav id="mobileSideMenu">
+    <button class="btn-main side-menu-close" style="background:#475569; padding:4px 10px;" onclick="closeMobileSideMenu()">✖</button>
+    <a href="#" target="_blank" class="btn-main" style="background:#0e7490;">📘 操作手冊</a>
+    <a href="#" target="_blank" class="btn-main" style="background:#7c3aed;">🗓️ 任務排程</a>
+    <button class="btn-main" style="background:#334155; opacity:0.55; cursor:default;" disabled>➕ (預留項目)</button>
+</nav>
 
 <div id="loader">⚙️ 資料同步處理中...</div>
 <div id="syncToast" class="sync-toast"></div>
@@ -359,37 +450,45 @@
     </header>
 
     <div class="marquee-container">
-        <div class="marquee-text" id="marqueeDisplay">🔔 歡迎使用智慧倉儲系統，請點擊新增入庫進行初次建檔。</div>
+        <div class="marquee-text" id="marqueeDisplay">
+            <span id="marqueeCustomText">🔔 歡迎使用智慧倉儲系統，請點擊新增入庫進行初次建檔。</span><span id="marqueeLastUpdateText" style="opacity:0.75; font-size:0.85em; margin-left:8px;"></span>
+        </div>
         <button id="marqueeEditBtn" class="btn-main marquee-edit-btn admin-edit-btn" style="display:none;" onclick="openMarqueeEditModal()">✏️ 編輯字卡</button>
     </div>
 
-    <!-- 管理員新增入庫面板 -->
-    <div id="admin-panel" style="display:none; background:rgba(6,182,212,0.05); padding:20px; border-radius:24px; border:1px solid var(--primary); margin-bottom:25px;">
-        <h4 style="margin-top:0; color:var(--primary); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-            <span>➕ 產品新增入庫建檔</span>
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <label id="approvalToggleWrap" style="display:none; align-items:center; gap:6px; font-size:12px; font-weight:normal; color:var(--text-dim); cursor:pointer;">
-                    <input type="checkbox" id="approvalToggle" onchange="toggleApprovalRequirement()">
-                    操作員新增/編輯需經管理員審核
-                </label>
-                <button class="btn-main" style="background:#0e7490; font-size:12px; padding:6px 10px;" onclick="openCustomFieldModal()">⚙️ 自訂欄位管理</button>
+    <!-- 管理員新增入庫面板：預設收合，僅顯示「+ 新品入庫」，點擊後展開完整表單 -->
+    <div id="admin-panel" style="display:none; background:rgba(6,182,212,0.05); padding:14px 20px; border-radius:24px; border:1px solid var(--primary); margin-bottom:25px;">
+        <div id="adminPanelHeaderBar" onclick="toggleAdminPanelBody()">
+            <b>➕ 新品入庫</b>
+            <span id="adminPanelToggleHint">點擊展開表單 ▾</span>
+        </div>
+        <div id="adminPanelBody" style="display:none;">
+            <h4 style="margin-top:0; color:var(--primary); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <span>➕ 產品新增入庫建檔</span>
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <label id="approvalToggleWrap" style="display:none; align-items:center; gap:6px; font-size:12px; font-weight:normal; color:var(--text-dim); cursor:pointer;">
+                        <input type="checkbox" id="approvalToggle" onchange="toggleApprovalRequirement()">
+                        操作員新增/編輯需經管理員審核
+                    </label>
+                    <button class="btn-main" style="background:#0e7490; font-size:12px; padding:6px 10px;" onclick="openCustomFieldModal()">⚙️ 自訂欄位管理</button>
+                </div>
+            </h4>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:10px;">
+                <select id="addZone" class="btn" onchange="autoFillAddColorFromOverride()"></select>
+                <select id="addFloor" class="btn" onchange="autoFillAddColorFromOverride()"></select>
+                <input type="number" id="addPos" placeholder="儲位號" class="btn" oninput="autoFillAddColorFromOverride()">
+                <input type="text" id="addName" placeholder="產品名稱" class="btn">
+                <input type="text" id="addBatch" placeholder="批號" class="btn">
+                <input type="date" id="addDate" class="btn" title="有效日期">
+                <input type="number" id="addAging" placeholder="熟成天數 (如: 45)" class="btn" title="填寫熟成天數並獨立計算熟成倒數" oninput="handleAddAgingInput()">
+                <input type="text" id="addNote" placeholder="備註" class="btn">
+                <div id="addCustomFieldsContainer" style="display:contents;"></div>
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <input type="color" id="addColor" class="btn" style="padding:2px; height:40px; cursor:pointer;" value="#06b6d4">
+                    <div id="addColorPalette" style="display:flex; gap:6px; align-items:center;"></div>
+                </div>
+                <button id="addSubmitBtn" onclick="submitFormAction('add')" class="btn-main">➕ 入庫建檔</button>
             </div>
-        </h4>
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:10px;">
-            <select id="addZone" class="btn" onchange="autoFillAddColorFromOverride()"></select>
-            <select id="addFloor" class="btn" onchange="autoFillAddColorFromOverride()"></select>
-            <input type="number" id="addPos" placeholder="儲位號" class="btn" oninput="autoFillAddColorFromOverride()">
-            <input type="text" id="addName" placeholder="產品名稱" class="btn">
-            <input type="text" id="addBatch" placeholder="批號" class="btn">
-            <input type="date" id="addDate" class="btn" title="有效日期">
-            <input type="number" id="addAging" placeholder="熟成天數 (如: 45)" class="btn" title="填寫熟成天數並獨立計算熟成倒數" oninput="handleAddAgingInput()">
-            <input type="text" id="addNote" placeholder="備註" class="btn">
-            <div id="addCustomFieldsContainer" style="display:contents;"></div>
-            <div style="display:flex; flex-direction:column; gap:4px;">
-                <input type="color" id="addColor" class="btn" style="padding:2px; height:40px; cursor:pointer;" value="#06b6d4">
-                <div id="addColorPalette" style="display:flex; gap:6px; align-items:center;"></div>
-            </div>
-            <button id="addSubmitBtn" onclick="submitFormAction('add')" class="btn-main">➕ 入庫建檔</button>
         </div>
     </div>
 
@@ -434,6 +533,7 @@
                 <input type="text" id="searchInput" class="btn" style="flex:1; min-width:220px;" placeholder="🔍 請輸入關鍵字搜尋 (產品名稱、批號、庫位...)" oninput="handleSearchInput()">
                 <button onclick="exportToExcel()" id="exportExcelBtn" class="btn-main" style="background:#10b981; white-space:nowrap;">📥 一鍵匯出當前搜尋結果 (.XLSX)</button>
             </div>
+            <div style="font-size:11px; color:var(--text-dim); margin-top:6px;">💡 想自行挑選要匯出的項目？點擊上方「☑️ 批次管理」勾選項目後，再按「📥 匯出所選」即可只匯出勾選的資料。</div>
 
             <!-- 手機/平板專用排序工具：桌機版用表頭點擊排序，但手機版表頭是隱藏的（卡片化呈現），
                  所以另外提供一組下拉選單＋方向切換鈕，功能與桌機的表頭點擊排序完全同步 -->
@@ -460,6 +560,7 @@
             <button class="btn-main" style="background:#475569; padding:6px 10px; font-size:12px;" onclick="toggleSelectAllVisible()">☑️ 全選/取消 (本頁)</button>
             <button class="btn-main" style="background:#0e7490; padding:6px 10px; font-size:12px;" onclick="openBatchEditModal()">✏️ 批次編輯</button>
             <button class="btn-main" style="background:#166534; padding:6px 10px; font-size:12px;" onclick="openBatchMoveModal()">📦 批次移庫</button>
+            <button class="btn-main" style="background:#0891b2; padding:6px 10px; font-size:12px;" onclick="exportSelectedToExcel()">📥 匯出所選 (.XLSX)</button>
             <button class="btn-main" style="background:var(--danger); padding:6px 10px; font-size:12px;" onclick="batchDeleteSelected()">🗑️ 批次刪除</button>
         </div>
     </div>
@@ -480,6 +581,12 @@
             </thead>
             <tbody id="tableBody"></tbody>
         </table>
+    </div>
+
+    <!-- 快速篩選：顯示已被滑動隱藏的字卡數量，並可一鍵復原 -->
+    <div id="hiddenCardsBar" style="display:none; margin:10px 0 0 0; padding:8px 14px; border:1px dashed rgba(148,163,184,.4); background:rgba(148,163,184,.08); border-radius:12px; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:12px; color:var(--text-dim);">
+        <span id="hiddenCardsCountText">👉 已隱藏 0 筆（往右滑動字卡可快速隱藏，方便篩選）</span>
+        <button class="btn-main" style="background:#475569; padding:5px 10px; font-size:12px;" onclick="restoreHiddenCards()">↩️ 全部復原</button>
     </div>
 
     <!-- 分頁控制 UI -->
@@ -1262,6 +1369,8 @@
 
     /* 分頁控制狀態 (固定 10 筆) */
     let currentPage = 1;
+    /* 快速篩選：手機字卡「往右滑動」暫時隱藏，方便快速略過已看過的資料 */
+    let hiddenCardIds = new Set();
     const pageSize = 10;
 
     /* ============ 批次管理（多選：批次刪除 / 批次編輯 / 批次移庫） ============ */
@@ -2260,11 +2369,44 @@
         }
     }
 
+    /* ============ 新增入庫建檔面板：收合/展開 ============ */
+    function toggleAdminPanelBody(forceOpen) {
+        const body = document.getElementById('adminPanelBody');
+        const hint = document.getElementById('adminPanelToggleHint');
+        if (!body) return;
+        const willOpen = typeof forceOpen === 'boolean' ? forceOpen : body.style.display === 'none';
+        body.style.display = willOpen ? 'block' : 'none';
+        if (hint) hint.innerText = willOpen ? '點擊收合表單 ▴' : '點擊展開表單 ▾';
+    }
+
+    /* ============ 手機/平板左側收納式選單 ============ */
+    function toggleMobileSideMenu() {
+        const menu = document.getElementById('mobileSideMenu');
+        const overlay = document.getElementById('mobileSideMenuOverlay');
+        if (!menu) return;
+        const willOpen = !menu.classList.contains('open');
+        menu.classList.toggle('open', willOpen);
+        if (overlay) overlay.style.display = willOpen ? 'block' : 'none';
+    }
+    function closeMobileSideMenu() {
+        const menu = document.getElementById('mobileSideMenu');
+        const overlay = document.getElementById('mobileSideMenuOverlay');
+        if (menu) menu.classList.remove('open');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    /* ============ 手機/平板庫存字卡：收合/展開（點擊卡片切換，點擊按鈕/連結/勾選框則不觸發） ============ */
+    function toggleMobileCard(tr, ev) {
+        if (ev && ev.target && ev.target.closest('button, a, input, select, textarea, code')) return;
+        tr.classList.toggle('card-expanded');
+    }
+
     function initApp() {
         document.getElementById('main-container').style.display = 'block';
         const roleLabel = currentUser.role === 'admin' ? '管理員' : (currentUser.role === 'guest' ? '訪客・僅檢視' : '操作員');
         document.getElementById('userBadge').innerText = `👤 ${currentUser.username} (${roleLabel})`;
         document.getElementById('admin-panel').style.display = currentUser.role !== 'guest' ? 'block' : 'none';
+        toggleAdminPanelBody(false); // 每次登入/切換身分時，新增入庫表單預設收合
         document.getElementById('zoneManageBtn').style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
         document.getElementById('marqueeEditBtn').style.display = currentUser.role === 'admin' ? 'inline-flex' : 'none';
         document.getElementById('backendSettingsBtn').style.display = currentUser.role === 'guest' ? 'none' : 'inline-flex';
@@ -2307,9 +2449,36 @@
         return TABLE_MARQUEES[CURRENT_TABLE] || '🔔 歡迎使用智慧倉儲系統，請點擊新增入庫進行初次建檔。';
     }
 
+    /* 依「目前庫存資料中最新一筆的建立時間」計算最後更新資訊。
+       由於 inventory 是每次 fetchData() 從雲端後端（Supabase / Google 試算表）重新取得，
+       所有裝置抓到的都是同一份資料，因此以此為準，可確保多裝置顯示的「最後更新」時間一致，
+       不會像純本機 localStorage 字卡文字那樣，各裝置各自不同。 */
+    function getLastInventoryActivityText() {
+        if (!Array.isArray(inventory) || !inventory.length) return '';
+        let latest = null;
+        let latestHasTime = false;
+        inventory.forEach(it => {
+            const raw = it.updatedAt || it.createdAt;
+            if (!raw) return;
+            const d = new Date(raw);
+            if (isNaN(d.getTime())) return;
+            if (!latest || d > latest) {
+                latest = d;
+                latestHasTime = /\d{1,2}:\d{2}/.test(String(raw));
+            }
+        });
+        if (!latest) return '';
+        const text = latestHasTime
+            ? latest.toLocaleString('zh-TW', { hour12: false })
+            : latest.toLocaleDateString('zh-TW');
+        return `｜ 最後新增/更新：${text}`;
+    }
+
     function renderMarquee() {
-        const el = document.getElementById('marqueeDisplay');
-        if (el) el.innerText = getCurrentMarqueeText();
+        const customEl = document.getElementById('marqueeCustomText');
+        const lastUpdateEl = document.getElementById('marqueeLastUpdateText');
+        if (customEl) customEl.innerText = getCurrentMarqueeText();
+        if (lastUpdateEl) lastUpdateEl.innerText = getLastInventoryActivityText();
     }
 
     function openMarqueeEditModal() {
@@ -2543,7 +2712,7 @@
             const slotTimer = SLOT_TIMERS[getSlotColorKey(zName, floor, i)];
             const isTimerExpired = !!(slotTimer && slotTimer.expired);
             const isSelected = selectedSlotFilter && selectedSlotFilter.zone === zName && selectedSlotFilter.floor === floor && Number(selectedSlotFilter.pos) === i;
-            slot.className = 'slot' + (items.length ? ' occupied' : '') + (isSelected ? ' active-slot' : '') + (isTimerExpired ? ' timer-expired' : '');
+            slot.className = 'slot' + (items.length ? ' occupied' : ' empty') + (isSelected ? ' active-slot' : '') + (isTimerExpired ? ' timer-expired' : '');
 
             slot.style.touchAction = 'manipulation'; // 避免行動裝置把快速點兩下判定為縮放手勢，蓋掉雙擊事件
             slot.onclick = function() {
@@ -2565,11 +2734,11 @@
                 slot.innerHTML = timerBadge + `<div>${i}</div><span class="count">${items.length} 件</span>` +
                     (agingShortText ? `<span class="count" style="color:#f8fafc; font-weight:bold; font-size:8px; background:rgba(0,0,0,0.35); padding:1px 4px; border-radius:4px; margin-top:1px;">${agingShortText}</span>` : '') +
                     (currentUser && currentUser.role !== 'guest'
-                        ? `<button class="btn-main admin-edit-btn visual-edit-btn" onclick="event.stopPropagation();openItemEditModal('${firstItem.id}')">✏️ 編輯</button>`
+                        ? `<button class="btn-main visual-edit-btn" title="編輯" onclick="event.stopPropagation();openItemEditModal('${firstItem.id}')">✏️<span class="visual-edit-label">編輯</span></button>`
                         : '');
                 occupied++;
             } else {
-                slot.innerHTML = timerBadge + `<div>${i}</div>`;
+                slot.innerHTML = timerBadge + `<div>${i}</div><span class="empty-add-label">＋ 空位</span>`;
                 if (slotColorOverride) {
                     slot.style.background = slotColorOverride;
                     slot.style.opacity = '0.55';
@@ -2823,16 +2992,9 @@
         return result;
     }
 
-    /* 一鍵匯出搜尋結果 .XLSX */
-    function exportToExcel() {
-        if (currentUser.role === 'guest') { alert('訪客身份僅能瀏覽，無法使用匯出功能'); return; }
-        const dataToExport = getFilteredInventory();
-        if (!dataToExport.length) {
-            alert('當前無可匯出的搜尋結果資料！');
-            return;
-        }
-
-        const exportData = dataToExport.map((item, index) => {
+    /* 將庫存項目陣列轉換為匯出用的欄位資料 */
+    function buildExportRows(dataToExport) {
+        return dataToExport.map((item, index) => {
             const row = {
                 "項次": index + 1,
                 "區域": item.zone || '',
@@ -2850,13 +3012,43 @@
             });
             return row;
         });
+    }
 
+    /* 將匯出資料寫入並下載 .XLSX 檔案 */
+    function writeExportWorkbook(exportData, sheetName, fileLabel) {
         const worksheet = XLSX.utils.json_to_sheet(exportData);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "庫存搜尋結果");
-        const fileName = `庫存搜尋結果_${CURRENT_TABLE}_${new Date().toISOString().slice(0,10)}.xlsx`;
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+        const fileName = `${fileLabel}_${CURRENT_TABLE}_${new Date().toISOString().slice(0,10)}.xlsx`;
         XLSX.writeFile(workbook, fileName);
+    }
+
+    /* 一鍵匯出目前搜尋結果 .XLSX */
+    function exportToExcel() {
+        if (currentUser.role === 'guest') { alert('訪客身份僅能瀏覽，無法使用匯出功能'); return; }
+        const dataToExport = getFilteredInventory();
+        if (!dataToExport.length) {
+            alert('當前無可匯出的搜尋結果資料！');
+            return;
+        }
+        writeExportWorkbook(buildExportRows(dataToExport), '庫存搜尋結果', '庫存搜尋結果');
         showToast('📥 已成功匯出 Excel 檔案！');
+    }
+
+    /* 匯出自行勾選（批次管理模式）的項目 .XLSX */
+    function exportSelectedToExcel() {
+        if (currentUser.role === 'guest') { alert('訪客身份僅能瀏覽，無法使用匯出功能'); return; }
+        if (!selectedItemIds.size) {
+            alert('請先在「☑️ 批次管理」模式下勾選要匯出的項目（可用「全選/取消 (本頁)」快速勾選）');
+            return;
+        }
+        const dataToExport = inventory.filter(it => selectedItemIds.has(it.id));
+        if (!dataToExport.length) {
+            alert('找不到所勾選的庫存資料！');
+            return;
+        }
+        writeExportWorkbook(buildExportRows(dataToExport), '庫存批次匯出', '庫存批次匯出');
+        showToast(`📥 已成功匯出所選 ${dataToExport.length} 筆資料！`);
     }
 
     function sortTable(key) {
@@ -2902,7 +3094,7 @@
 
     function renderTable() {
         const tbody = document.getElementById('tableBody');
-        const filteredList = getFilteredInventory();
+        const filteredList = getFilteredInventory().filter(i => !hiddenCardIds.has(i.id));
         updateSortIcons();
 
         const totalItems = filteredList.length;
@@ -2923,13 +3115,14 @@
         if (pageData.length === 0) {
             const emptyText = selectedSlotFilter
                 ? `目前庫位「${selectedSlotFilter.zone} · ${selectedSlotFilter.floor}-${selectedSlotFilter.pos}」沒有庫存資料。`
-                : '目前無符合條件的庫存資料。';
+                : (hiddenCardIds.size > 0 ? '目前頁面的字卡都已被滑動隱藏，可於下方一鍵復原查看。' : '目前無符合條件的庫存資料。');
             tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding:30px; color:var(--text-dim);">${emptyText}</td></tr>`;
+            updateHiddenCardsBar();
             return;
         }
 
         tbody.innerHTML = pageData.map(i => `
-            <tr>
+            <tr class="mobile-card" data-item-id="${i.id}" onclick="toggleMobileCard(this, event)">
                 ${batchMode ? `<td data-label="選取"><input type="checkbox" ${selectedItemIds.has(i.id) ? 'checked' : ''} onchange="toggleItemSelection('${i.id}')"></td>` : ''}
                 <td data-label="儲位位置">
                     <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${i.color || 'var(--primary)'}; margin-right:6px;"></span>
@@ -2978,6 +3171,104 @@
             </tr>
         `).join('');
         updateBatchSelectedCount();
+        updateHiddenCardsBar();
+        initCardSwipeGestures();
+    }
+
+    /* ============ 快速篩選：字卡往右滑動可暫時隱藏（僅手機/平板卡片檢視生效） ============ */
+    let cardSwipeState = null;
+
+    function initCardSwipeGestures() {
+        const tbody = document.getElementById('tableBody');
+        if (!tbody || tbody.dataset.swipeBound === '1') return;
+        tbody.dataset.swipeBound = '1';
+        tbody.addEventListener('touchstart', onCardSwipeStart, { passive: true });
+        tbody.addEventListener('touchmove', onCardSwipeMove, { passive: false });
+        tbody.addEventListener('touchend', onCardSwipeEnd);
+        tbody.addEventListener('touchcancel', onCardSwipeEnd);
+    }
+
+    function isCardViewActive() {
+        return window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    function onCardSwipeStart(e) {
+        cardSwipeState = null;
+        if (!isCardViewActive()) return;
+        if (e.target.closest('button, a, input, select, textarea, code')) return;
+        const tr = e.target.closest('tr.mobile-card');
+        if (!tr) return;
+        const t = e.touches[0];
+        cardSwipeState = { tr, startX: t.clientX, startY: t.clientY, dx: 0, dragging: false };
+        tr.style.transition = 'none';
+    }
+
+    function onCardSwipeMove(e) {
+        if (!cardSwipeState) return;
+        const t = e.touches[0];
+        const dx = t.clientX - cardSwipeState.startX;
+        const dy = t.clientY - cardSwipeState.startY;
+
+        if (!cardSwipeState.dragging) {
+            if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+            if (Math.abs(dx) <= Math.abs(dy)) { cardSwipeState = null; return; } // 判定為垂直捲動，交還給瀏覽器
+            cardSwipeState.dragging = true;
+            cardSwipeState.tr.classList.add('swiping');
+        }
+
+        if (dx <= 0) { // 只支援向右滑動
+            cardSwipeState.dx = 0;
+            cardSwipeState.tr.style.transform = '';
+            cardSwipeState.tr.style.opacity = '';
+            return;
+        }
+        e.preventDefault();
+        cardSwipeState.dx = dx;
+        cardSwipeState.tr.style.transform = `translateX(${dx}px)`;
+        cardSwipeState.tr.style.opacity = String(Math.max(1 - dx / 260, 0.35));
+    }
+
+    function onCardSwipeEnd() {
+        if (!cardSwipeState) return;
+        const { tr, dx, dragging } = cardSwipeState;
+        tr.classList.remove('swiping');
+        tr.style.transition = 'transform 0.22s ease, opacity 0.22s ease';
+        const threshold = Math.min(110, tr.offsetWidth * 0.32);
+
+        if (dragging && dx > threshold) {
+            tr.style.transform = 'translateX(120%)';
+            tr.style.opacity = '0';
+            const itemId = tr.dataset.itemId;
+            setTimeout(() => {
+                if (itemId) {
+                    hiddenCardIds.add(itemId);
+                    renderTable();
+                    showToast('👉 已隱藏此筆資料，可於清單下方一鍵復原');
+                }
+            }, 180);
+        } else {
+            tr.style.transform = '';
+            tr.style.opacity = '';
+        }
+        cardSwipeState = null;
+    }
+
+    function updateHiddenCardsBar() {
+        const bar = document.getElementById('hiddenCardsBar');
+        const text = document.getElementById('hiddenCardsCountText');
+        if (!bar || !text) return;
+        if (hiddenCardIds.size > 0) {
+            bar.style.display = 'flex';
+            text.innerText = `👉 已隱藏 ${hiddenCardIds.size} 筆（往右滑動字卡可快速隱藏，方便篩選）`;
+        } else {
+            bar.style.display = 'none';
+        }
+    }
+
+    function restoreHiddenCards() {
+        hiddenCardIds.clear();
+        renderTable();
+        showToast('↩️ 已復原全部隱藏的字卡');
     }
 
     function changePage(delta) {
@@ -3323,6 +3614,7 @@
         currentPage = 1;
         selectedSlotFilter = null;
         activeExpFilter = null;
+        hiddenCardIds.clear();
 
         loadSlotColorOverrides();
         loadSlotTimers();
