@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SKU 商品主檔管理 - V1.3</title>
+<style>
+:root{
+  --primary:#06b6d4;--primary2:#0891b2;--bg:#0f172a;--card:#1e293b;
+  --text:#f8fafc;--dim:#94a3b8;--border:rgba(255,255,255,.12);
+  --danger:#ef4444;--ok:#10b981;--warn:#f59e0b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,"Noto Sans TC",sans-serif}
+.container{width:95%;max-width:1450px;margin:20px auto;padding:24px;background:rgba(30,41,59,.82);border:1px solid var(--border);border-radius:24px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:22px;color:#67e8f9}
+.sub{font-size:12px;color:var(--dim);margin-top:5px}
+.toolbar,.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.toolbar{margin:18px 0}
+input,select,textarea{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);background:#0f172a;color:var(--text);outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--primary)}
+button{border:0;border-radius:10px;padding:10px 14px;color:#fff;background:var(--primary);cursor:pointer;font-weight:700}
+button:hover{background:var(--primary2)}
+.btn-dark{background:#334155}.btn-ok{background:var(--ok)}.btn-danger{background:var(--danger)}.btn-warn{background:#b45309}
+.card{padding:18px;border:1px solid var(--border);border-radius:18px;background:rgba(15,23,42,.45);margin-top:16px}
+.card h2{font-size:16px;margin:0 0 14px;color:#67e8f9}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{padding:14px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.03)}
+.stat b{display:block;font-size:22px}.stat span{font-size:11px;color:var(--dim)}
+table{width:100%;border-collapse:separate;border-spacing:0 7px;min-width:1050px}
+th{color:var(--dim);font-size:12px;text-align:left;padding:10px;cursor:pointer}
+td{padding:11px 10px;background:rgba(255,255,255,.035);border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:13px}
+td:first-child{border-left:1px solid var(--border);border-radius:10px 0 0 10px}
+td:last-child{border-right:1px solid var(--border);border-radius:0 10px 10px 0}
+.wrap{overflow:auto}.sku{color:#67e8f9;font-weight:800;font-family:monospace}
+.badge{display:inline-block;padding:3px 8px;border-radius:7px;background:rgba(6,182,212,.15);color:#67e8f9;font-size:11px}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);align-items:center;justify-content:center;padding:15px;z-index:20}
+.modal-box{width:95%;max-width:760px;background:#1e293b;border:1px solid var(--primary);border-radius:20px;padding:22px;max-height:92vh;overflow:auto}
+.modal-head{display:flex;justify-content:space-between;align-items:center}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.location-list{display:flex;flex-direction:column;gap:8px}
+.location-row{display:grid;grid-template-columns:minmax(150px,1.2fr) minmax(120px,.8fr) minmax(130px,.8fr) minmax(100px,.7fr) 40px;gap:8px;align-items:end;padding:10px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.025)}
+.location-row label{font-size:11px;color:var(--dim);display:block;margin-bottom:4px}
+.location-summary{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.location-tag{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:8px;background:rgba(16,185,129,.12);color:#6ee7b7;font-size:11px}
+.note-cell{max-width:220px;white-space:normal;line-height:1.5}
+.location-row{grid-template-columns:minmax(140px,1.2fr) minmax(110px,.8fr) minmax(120px,.8fr) minmax(90px,.7fr) minmax(110px,.8fr) 40px}
+@media(max-width:700px){.location-row{grid-template-columns:1fr 1fr}.location-row .loc-remove{grid-column:span 2}}
+small{color:var(--dim)}
+@media(max-width:700px){
+ .container{width:100%;margin:0;border-radius:0;padding:14px}
+ .stats{grid-template-columns:repeat(2,1fr)}
+ .form-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <div>
+    <h1>🏷️ SKU 商品主檔管理系統 V1.3</h1>
+    <div class="sub">V1.3：支援一個 SKU 多儲位、精準拆箱庫存；可設定庫存單位、換算單位與每箱換算數量，並追蹤整箱／零散庫存。</div>
+  </div>
+  <div class="actions">
+    <button onclick="openForm()">➕ 新增 SKU</button>
+    <button class="btn-ok" onclick="exportCSV()">📥 匯出 CSV</button>
+    <button class="btn-dark" onclick="importFile.click()">📤 匯入 CSV</button>
+    <input id="importFile" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(event)">
+  </div>
+</header>
+
+<div class="stats" style="margin-top:18px">
+  <div class="stat"><b id="statAll">0</b><span>SKU 總數</span></div>
+  <div class="stat"><b id="statFrozen">0</b><span>冷凍品</span></div>
+  <div class="stat"><b id="statChilled">0</b><span>冷藏／常溫</span></div>
+  <div class="stat"><b id="statNoStock">0</b><span>尚未建立庫存</span></div>
+</div>
+
+<div class="card">
+<h2>🔎 SKU 查詢</h2>
+<div class="toolbar">
+  <input id="search" placeholder="搜尋 SKU、品名、批號、條碼、供應商..." oninput="render()">
+  <select id="category" onchange="render()">
+    <option value="">全部類別</option>
+    <option>冷凍品</option><option>冷藏品</option><option>常溫品</option><option>冷藏牛</option>
+  </select>
+  <select id="unit" onchange="render()">
+    <option value="">全部單位</option><option>箱</option><option>包</option><option>公斤</option><option>片</option><option>個</option>
+  </select>
+  <select id="sort" onchange="render()">
+    <option value="sku">SKU</option><option value="name">品名</option><option value="category">類別</option>
+    <option value="expiry">有效日期</option><option value="stock">庫存</option>
+  </select>
+  <button class="btn-dark" onclick="toggleDir()">⬆️ 排序方向</button>
+</div>
+</div>
+
+
+<div class="card">
+<h2>🔗 SKU ↔ 庫存關聯測試</h2>
+<div class="toolbar">
+  <select id="linkSku" onchange="showLinkInfo()">
+    <option value="">選擇 SKU...</option>
+  </select>
+  <input id="linkBatch" placeholder="批號（可留空，代表此 SKU 全部批號）" oninput="showLinkInfo()">
+  <button class="btn-dark" onclick="showLinkInfo()">🔍 查詢關聯</button>
+</div>
+<div id="linkResult" style="padding:12px;border:1px dashed var(--border);border-radius:12px;color:var(--dim)">
+  選擇 SKU 後，可查看此 SKU 對應的批號、效期、儲位與庫存。
+</div>
+</div>
+
+<div class="card">
+<h2>📦 SKU 商品主檔</h2>
+<div class="wrap">
+<table>
+<thead><tr>
+<th onclick="setSort('sku')">SKU</th><th onclick="setSort('name')">產品名稱</th><th>類別</th>
+<th>規格</th><th>單位</th><th>條碼</th><th>批號</th><th>有效日期</th><th>庫存</th><th>備註</th><th>操作</th>
+</tr></thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+<div style="margin-top:12px;font-size:12px;color:var(--dim)" id="countText"></div>
+</div>
+</div>
+
+<div class="modal" id="modal">
+<div class="modal-box">
+<div class="modal-head">
+<h2 id="formTitle" style="margin:0;color:#67e8f9">➕ 新增 SKU</h2>
+<button class="btn-dark" onclick="closeForm()">✖</button>
+</div>
+<p><small>SKU 編號可自動產生，也可以手動修改。初步版先以「類別代碼-流水號」作為基礎。</small></p>
+<div class="form-grid">
+  <div><label>SKU 編號</label><input id="fSku" placeholder="例如 FRZ-0001"><small>留空可自動產生</small></div>
+  <div><label>產品名稱 *</label><input id="fName" placeholder="例如 牛五花火鍋片"></div>
+  <div><label>類別</label><select id="fCategory"><option>冷凍品</option><option>冷藏品</option><option>常溫品</option><option>冷藏牛</option></select></div>
+  <div><label>規格</label><input id="fSpec" placeholder="例如 300g / 10包 / 20kg"></div>
+  <div><label>庫存單位</label><select id="fUnit"><option>箱</option><option>包</option><option>公斤</option><option>片</option><option>個</option></select></div>
+  <div><label>換算單位</label><select id="fConversionUnit"><option>包</option><option>片</option><option>個</option><option>1/2 個</option><option>1/4 個</option><option>公斤</option><option>公克</option></select></div>
+  <div><label>1 庫存單位 =</label><input id="fConversionQty" type="number" min="0.000001" step="0.000001" value="1"><small id="conversionHint">例如：1 箱 = 10 包</small></div>
+  <div><label>條碼 / Barcode</label><input id="fBarcode" placeholder="可掃描或手動輸入"></div>
+  <div><label>批號</label><input id="fBatch"></div>
+  <div><label>有效日期</label><input id="fExpiry" type="date"></div>
+  <div><label>目前庫存</label><input id="fStock" type="number" step="0.001" value="0"></div>
+  <div><label>庫存來源鍵值</label><input id="fStockKey" placeholder="例如 count1 / frozen / chilled"></div>
+  <div><label>供應商</label><input id="fSupplier"></div>
+  <div><label>品牌</label><input id="fBrand"></div>
+  <div style="grid-column:1/-1">
+  <label>對應儲位（可多個）</label>
+  <div id="locationEditor" class="location-list"></div>
+  <button type="button" class="btn-dark" style="margin-top:8px" onclick="addLocationRow()">➕ 新增儲位</button>
+  <small style="display:block;margin-top:6px">每個儲位可獨立管理批號、效期、整箱數與零散數。</small>
+</div>
+</div>
+<div style="margin-top:10px"><label>備註</label><textarea id="fNote" rows="3"></textarea></div>
+<div class="actions" style="margin-top:14px">
+  <button onclick="saveSKU()">💾 儲存 SKU</button>
+  <button class="btn-dark" onclick="closeForm()">取消</button>
+</div>
+</div>
+</div>
+
+<script>
+const KEY='sku_master_v1';
+let data=JSON.parse(localStorage.getItem(KEY)||'[]');
+// V1.1 data remains compatible; old single-location records are converted when read.
+let editingId=null, dir=1;
+
+const catCode={'冷凍品':'FRZ','冷藏品':'CHL','常溫品':'NOR','冷藏牛':'BEEF'};
+
+function saveLocal(){localStorage.setItem(KEY,JSON.stringify(data));}
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function nextSKU(cat){
+  const p=catCode[cat]||'SKU';
+  let n=1;
+  const nums=data.filter(x=>(x.sku||'').startsWith(p+'-')).map(x=>parseInt((x.sku||'').split('-').pop())||0);
+  if(nums.length)n=Math.max(...nums)+1;
+  return p+'-'+String(n).padStart(4,'0');
+}
+function openForm(id=null){
+  editingId=id;
+  document.getElementById('formTitle').innerText=id?'✏️ 編輯 SKU':'➕ 新增 SKU';
+  const x=id?data.find(a=>a.id===id):null;
+  const fields=['Sku','Name','Category','Spec','Unit','ConversionUnit','ConversionQty','Barcode','Supplier','Brand','Note'];
+  fields.forEach(k=>{
+    const el=document.getElementById('f'+k);
+    if(el)el.value=x?(x[k.toLowerCase()]??''):'';
+  });
+  document.getElementById('fConversionQty').value=x?(x.conversionQty??1):1;
+  if(!x)document.getElementById('fSku').value='';
+  renderLocationEditor(x ? normalizeLocations(x) : []);
+  document.getElementById('modal').style.display='flex';
+}
+function closeForm(){document.getElementById('modal').style.display='none';editingId=null;}
+
+function normalizeLocations(x){
+  if(Array.isArray(x.locations)) return x.locations.map(normalizeLocation);
+  if(x.location || x.batch || x.expiry || Number(x.stock||0) || x.stockKey){
+    return [normalizeLocation({location:x.location||'',batch:x.batch||'',expiry:x.expiry||'',stock:Number(x.stock||0),stockKey:x.stockKey||''})];
+  }
+  return [];
+}
+function normalizeLocation(v){
+  return {
+    location:String(v?.location??'').trim(),
+    batch:String(v?.batch??'').trim(),
+    expiry:String(v?.expiry??'').trim(),
+    stock:Number(v?.stock??0),
+    stockKey:String(v?.stockKey??'').trim()
+  };
+}
+function addLocationRow(v={}){
+  const editor=document.getElementById('locationEditor');
+  const row=document.createElement('div');
+  row.className='location-row';
+  row.innerHTML=`
+    <div><label>儲位 *</label><input class="loc-location" placeholder="例如 冷凍左 1F-01" value="${esc(v.location||'')}"></div>
+    <div><label>批號</label><input class="loc-batch" placeholder="可留空" value="${esc(v.batch||'')}"></div>
+    <div><label>有效日期</label><input class="loc-expiry" type="date" value="${esc(v.expiry||'')}"></div>
+    <div><label>該儲位庫存</label><input class="loc-stock" type="number" step="0.001" value="${Number(v.stock||0)}"></div>
+    <button type="button" class="btn-danger loc-remove" title="刪除此儲位">✖</button>
+  `;
+  row.querySelector('.loc-remove').onclick=()=>{row.remove(); if(!editor.children.length)addLocationRow();};
+  editor.appendChild(row);
+}
+function renderLocationEditor(list){
+  const editor=document.getElementById('locationEditor');
+  editor.innerHTML='';
+  (list.length?list:[{}]).forEach(addLocationRow);
+}
+function collectLocations(){
+  return [...document.querySelectorAll('#locationEditor .location-row')].map(row=>({
+    location:row.querySelector('.loc-location').value.trim(),
+    batch:row.querySelector('.loc-batch').value.trim(),
+    expiry:row.querySelector('.loc-expiry').value,
+    stock:Number(row.querySelector('.loc-stock').value||0),
+    stockKey:''
+  })).filter(x=>x.location || x.batch || x.expiry || x.stock);
+}
+
+
+function normalizeLocations(x){
+  if(Array.isArray(x.locations)) return x.locations.map(normalizeLocation);
+  if(x.location || x.batch || x.expiry || Number(x.stock||0)){
+    return [normalizeLocation({location:x.location||'',batch:x.batch||'',expiry:x.expiry||'',stock:Number(x.stock||0),looseStock:Number(x.looseStock||0)})];
+  }
+  return [];
+}
+function normalizeLocation(v){
+  return {location:String(v?.location??'').trim(),batch:String(v?.batch??'').trim(),expiry:String(v?.expiry??'').trim(),stock:Number(v?.stock??0),looseStock:Number(v?.looseStock??0)};
+}
+function conversionQty(x){const n=Number(x?.conversionQty);return n>0?n:1}
+function inventoryOf(x,l){
+  const q=conversionQty(x), whole=Number(l?.stock||0), loose=Number(l?.looseStock||0);
+  return {whole,loose,total:whole*q+loose};
+}
+function fmt(n){return Number.isInteger(Number(n))?String(Number(n)):String(Number(Number(n).toFixed(6)))}
+function updateConversionHint(){
+  const u=document.getElementById('fUnit')?.value||'箱', c=document.getElementById('fConversionUnit')?.value||'包', q=document.getElementById('fConversionQty')?.value||'1';
+  const h=document.getElementById('conversionHint'); if(h)h.textContent=`例如：1 ${u} = ${q} ${c}`;
+}
+function addLocationRow(v={}){
+  const ed=document.getElementById('locationEditor'), row=document.createElement('div');
+  row.className='location-row';
+  row.innerHTML=`<div><label>儲位 *</label><input class="loc-location" placeholder="例如 冷凍左 1F-01" value="${esc(v.location||'')}"></div>
+  <div><label>批號</label><input class="loc-batch" value="${esc(v.batch||'')}"></div>
+  <div><label>有效日期</label><input class="loc-expiry" type="date" value="${esc(v.expiry||'')}"></div>
+  <div><label>整箱數</label><input class="loc-stock" type="number" min="0" step="0.000001" value="${Number(v.stock||0)}"></div>
+  <div><label>零散數（換算單位）</label><input class="loc-loose" type="number" min="0" step="0.000001" value="${Number(v.looseStock||0)}"></div>
+  <button type="button" class="btn-danger loc-remove">✖</button>`;
+  row.querySelector('.loc-remove').onclick=()=>{row.remove();if(!ed.children.length)addLocationRow()};
+  ed.appendChild(row);
+}
+function renderLocationEditor(list){
+  const ed=document.getElementById('locationEditor'); ed.innerHTML=''; (list.length?list:[{}]).forEach(addLocationRow);
+}
+function collectLocations(){
+  return [...document.querySelectorAll('#locationEditor .location-row')].map(r=>({
+    location:r.querySelector('.loc-location').value.trim(),
+    batch:r.querySelector('.loc-batch').value.trim(),
+    expiry:r.querySelector('.loc-expiry').value,
+    stock:Number(r.querySelector('.loc-stock').value||0),
+    looseStock:Number(r.querySelector('.loc-loose').value||0)
+  })).filter(x=>x.location||x.batch||x.expiry||x.stock||x.looseStock);
+}
+
+function saveSKU(){
+  const name=document.getElementById('fName').value.trim(); if(!name){alert('請輸入產品名稱');return}
+  const category=document.getElementById('fCategory').value;
+  let sku=document.getElementById('fSku').value.trim().toUpperCase(); if(!sku)sku=nextSKU(category);
+  if(data.some(x=>x.sku===sku&&x.id!==editingId)){alert('SKU 編號已存在，請換一組。');return}
+  const locations=collectLocations(); if(locations.some(x=>!x.location)){alert('每筆儲位資料都必須填寫儲位名稱。');return}
+  const unit=document.getElementById('fUnit').value, cu=document.getElementById('fConversionUnit').value;
+  const cq=Number(document.getElementById('fConversionQty').value||0); if(cq<=0){alert('換算數量必須大於 0。');return}
+  const x={id:editingId||('sku_'+Date.now()+Math.random().toString(16).slice(2)),sku,name,category,
+    spec:document.getElementById('fSpec').value.trim(),unit,conversionUnit:cu,conversionQty:cq,
+    barcode:document.getElementById('fBarcode').value.trim(),supplier:document.getElementById('fSupplier').value.trim(),
+    brand:document.getElementById('fBrand').value.trim(),note:document.getElementById('fNote').value.trim(),locations,
+    location:locations.map(l=>l.location).join('、'),
+    stock:locations.reduce((n,l)=>n+Number(l.stock||0),0),
+    looseStock:locations.reduce((n,l)=>n+Number(l.looseStock||0),0),
+    totalBaseStock:locations.reduce((n,l)=>n+inventoryOf({conversionQty:cq},l).total,0),
+    batch:locations[0]?.batch||'',expiry:locations[0]?.expiry||'',updatedAt:new Date().toISOString()};
+  if(editingId){const i=data.findIndex(a=>a.id===editingId);data[i]=x}else data.push(x);
+  saveLocal();closeForm();render();
+}
+
+function setSort(k){document.getElementById('sort').value=k;render()}
+function toggleDir(){dir*=-1;render()}
+
+function refreshSkuSelector(){
+  const el=document.getElementById('linkSku');
+  if(!el)return;
+  const old=el.value;
+  el.innerHTML='<option value="">選擇 SKU...</option>'+
+    data.slice().sort((a,b)=>String(a.sku).localeCompare(String(b.sku))).map(x=>
+      `<option value="${esc(x.id)}">${esc(x.sku)} — ${esc(x.name)}</option>`).join('');
+  if(data.some(x=>x.id===old))el.value=old;
+}
+function showLinkInfo(){
+  const id=document.getElementById('linkSku').value,batch=document.getElementById('linkBatch').value.trim().toLowerCase(),box=document.getElementById('linkResult'),sku=data.find(x=>x.id===id);
+  if(!sku){box.innerHTML='請先選擇 SKU。';return}
+  const rec=[];data.filter(x=>x.sku===sku.sku).forEach(x=>normalizeLocations(x).forEach(l=>{if(!batch||String(l.batch||'').toLowerCase()===batch)rec.push({l,iv:inventoryOf(x,l)})}));
+  if(!rec.length){box.innerHTML='此 SKU 尚無符合條件的儲位／庫存資料。';return}
+  const total=rec.reduce((n,r)=>n+r.iv.total,0),whole=rec.reduce((n,r)=>n+r.iv.whole,0),loose=rec.reduce((n,r)=>n+r.iv.loose,0);
+  box.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+  <div><small>SKU</small><br><b class="sku">${esc(sku.sku)}</b></div><div><small>產品</small><br><b>${esc(sku.name)}</b></div>
+  <div><small>整箱</small><br><b>${fmt(whole)} ${esc(sku.unit)}</b></div><div><small>零散</small><br><b>${fmt(loose)} ${esc(sku.conversionUnit)}</b></div>
+  <div><small>換算總數</small><br><b>${fmt(total)} ${esc(sku.conversionUnit)}</b></div></div>
+  <div class="wrap" style="margin-top:12px"><table style="min-width:1000px"><thead><tr><th>儲位</th><th>批號</th><th>有效日期</th><th>整箱</th><th>零散</th><th>換算後總數</th></tr></thead>
+  <tbody>${rec.map(r=>`<tr><td><b>${esc(r.l.location||'-')}</b></td><td>${esc(r.l.batch||'-')}</td><td>${esc(r.l.expiry||'-')}</td><td>${fmt(r.iv.whole)} ${esc(sku.unit)}</td><td>${fmt(r.iv.loose)} ${esc(sku.conversionUnit)}</td><td><b>${fmt(r.iv.total)} ${esc(sku.conversionUnit)}</b></td></tr>`).join('')}</tbody></table></div>`;
+}
+
+function render(){
+  const q=document.getElementById('search').value.trim().toLowerCase(),cat=document.getElementById('category').value,unit=document.getElementById('unit').value;
+  let rows=data.filter(x=>{const loc=normalizeLocations(x).map(l=>[l.location,l.batch,l.expiry].join(' ')).join(' '),str=[x.sku,x.name,x.barcode,x.supplier,x.brand,x.location,loc,x.note].join(' ').toLowerCase();return(!q||str.includes(q))&&(!cat||x.category===cat)&&(!unit||x.unit===unit)});
+  rows=rows.map(x=>{const ls=normalizeLocations(x),iv=ls.map(l=>inventoryOf(x,l));return {...x,_locations:ls,_whole:iv.reduce((n,v)=>n+v.whole,0),_loose:iv.reduce((n,v)=>n+v.loose,0),_total:iv.reduce((n,v)=>n+v.total,0)}});
+  const k=document.getElementById('sort').value;rows.sort((a,b)=>String(k==='stock'?a._total:(a[k]??'')).localeCompare(String(k==='stock'?b._total:(b[k]??'')),'zh-Hant',{numeric:true})*dir);
+  document.getElementById('tbody').innerHTML=rows.length?rows.map(x=>`<tr>
+  <td><span class="sku">${esc(x.sku)}</span><br><small>${x._locations.length} 個儲位</small></td><td><b>${esc(x.name)}</b><br><small>${esc(x.brand)}</small></td>
+  <td><span class="badge">${esc(x.category)}</span></td><td>${esc(x.spec||'-')}</td>
+  <td>${esc(x.unit||'-')}<br><small>1 ${esc(x.unit||'')} = ${fmt(x.conversionQty)} ${esc(x.conversionUnit||'')}</small></td>
+  <td><code>${esc(x.barcode||'-')}</code></td><td>${x._locations.map(l=>`<div>${esc(l.batch||'-')}</div>`).join('')||'-'}</td>
+  <td>${x._locations.map(l=>`<div>${esc(l.expiry||'-')}</div>`).join('')||'-'}</td>
+  <td><b>${fmt(x._whole)} ${esc(x.unit||'')}</b>${x._loose?` + <b>${fmt(x._loose)} ${esc(x.conversionUnit||'')}</b>`:''}<br><small>合計 ${fmt(x._total)} ${esc(x.conversionUnit||'')}</small><br><small>${x._locations.map(l=>esc(l.location)).join('、')}</small></td>
+  <td class="note-cell">${esc(x.note||'-')}</td><td><div class="actions"><button style="padding:6px 9px" onclick="openForm('${x.id}')">✏️</button><button class="btn-danger" style="padding:6px 9px" onclick="delSKU('${x.id}')">🗑️</button></div></td></tr>`).join(''):`<tr><td colspan="12" style="text-align:center;padding:35px;color:var(--dim)">尚無 SKU 資料，請先按「新增 SKU」。</td></tr>`;
+  document.getElementById('countText').innerText=`顯示 ${rows.length} / ${data.length} 筆 SKU`;document.getElementById('statAll').innerText=data.length;
+  document.getElementById('statFrozen').innerText=data.filter(x=>x.category==='冷凍品').length;
+  document.getElementById('statChilled').innerText=data.filter(x=>['冷藏品','冷藏牛','常溫品'].includes(x.category)).length;
+  document.getElementById('statNoStock').innerText=data.filter(x=>normalizeLocations(x).reduce((n,l)=>n+inventoryOf(x,l).total,0)<=0).length;
+  refreshSkuSelector();if(document.getElementById('linkSku').value)showLinkInfo();
+}
+
+function delSKU(id){
+  const x=data.find(a=>a.id===id);
+  if(!x)return;
+  if(confirm(`確定刪除 SKU「${x.sku}」嗎？`)){data=data.filter(a=>a.id!==id);saveLocal();render()}
+}
+function csvCell(v){v=String(v??'');return '"'+v.replace(/"/g,'""')+'"'}
+function exportCSV(){
+  const head=['SKU','產品名稱','類別','規格','庫存單位','換算單位','1庫存單位換算數','條碼','儲位','批號','有效日期','整箱數','零散數','換算後總數','供應商','品牌','備註'];
+  const lines=[head.map(csvCell).join(',')];
+  data.forEach(x=>normalizeLocations(x).forEach(l=>{const iv=inventoryOf(x,l);lines.push([x.sku,x.name,x.category,x.spec,x.unit,x.conversionUnit,x.conversionQty,x.barcode,l.location,l.batch,l.expiry,l.stock,l.looseStock,iv.total,x.supplier,x.brand,x.note].map(csvCell).join(','))}));
+  const blob=new Blob(['\uFEFF'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='SKU商品主檔_V1.3.csv';a.click();URL.revokeObjectURL(a.href);
+}
+
+function parseCSVLine(line){
+  let out=[],c='',q=false;
+  for(let i=0;i<line.length;i++){let ch=line[i];
+    if(ch==='"'){if(q&&line[i+1]==='"'){c+='"';i++}else q=!q}
+    else if(ch===','&&!q){out.push(c);c=''}else c+=ch;
+  } out.push(c);return out;
+}
+function importCSV(ev){
+  const file=ev.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{
+    const lines=r.result.replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean);if(lines.length<2){alert('CSV 沒有資料');return}
+    let added=0,merged=0;lines.slice(1).map(parseCSVLine).forEach(a=>{
+      if(!a[0]||!a[1])return;const loc={location:a[8]||'',batch:a[9]||'',expiry:a[10]||'',stock:Number(a[11]||0),looseStock:Number(a[12]||0)};
+      let x=data.find(x=>x.sku===a[0]);
+      if(x){x.locations=normalizeLocations(x);if(loc.location||loc.batch||loc.expiry||loc.stock||loc.looseStock)x.locations.push(loc);x.location=x.locations.map(l=>l.location).filter(Boolean).join('、');x.updatedAt=new Date().toISOString();merged++;return}
+      data.push({id:'sku_'+Date.now()+Math.random().toString(16).slice(2),sku:a[0],name:a[1],category:a[2]||'冷凍品',spec:a[3]||'',unit:a[4]||'箱',conversionUnit:a[5]||'包',conversionQty:Number(a[6]||1),barcode:a[7]||'',supplier:a[14]||'',brand:a[15]||'',note:a[16]||'',locations:loc.location||loc.stock||loc.looseStock?[loc]:[],location:loc.location||''});added++;
+    });saveLocal();render();alert(`匯入完成：新增 ${added} 個 SKU，合併 ${merged} 筆儲位資料`);ev.target.value='';
+  };r.readAsText(file,'UTF-8');
+}
+
+document.getElementById('fUnit')?.addEventListener('change',updateConversionHint);document.getElementById('fConversionUnit')?.addEventListener('change',updateConversionHint);document.getElementById('fConversionQty')?.addEventListener('input',updateConversionHint);updateConversionHint();
+render();
+</script>
+</body>
+</html>
