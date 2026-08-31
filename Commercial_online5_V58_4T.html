@@ -988,6 +988,47 @@
         return index;
     }
 
+    // 支援 CSV 中的雙引號、逗號與跳脫雙引號；不依賴外部函式庫。
+    function parseCsvLine(line) {
+        const cells = [];
+        let cell = '';
+        let quoted = false;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+                if (quoted && line[i + 1] === '"') { cell += '"'; i++; }
+                else quoted = !quoted;
+            } else if (ch === ',' && !quoted) {
+                cells.push(cell.trim());
+                cell = '';
+            } else {
+                cell += ch;
+            }
+        }
+        cells.push(cell.trim());
+        return cells;
+    }
+
+    async function loadOnlineStockQuantityIndex() {
+        const results = await Promise.allSettled(ONLINE_STOCK_SOURCES.map(async source => {
+            const response = await fetch(source.url, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`${response.status} ${source.url}`);
+            const text = await response.text();
+            return text.replace(/^\uFEFF/, '').split(/\r?\n/).slice(1)
+                .filter(Boolean)
+                .map(parseCsvLine)
+                .map(cells => ({ name: cells[source.nameIndex], num: cells[source.quantityIndex] }));
+        }));
+
+        const rows = [];
+        results.forEach((result, index) => {
+            if (result.status === 'fulfilled') rows.push(...result.value);
+            else console.warn('公開庫存資料讀取失敗：', ONLINE_STOCK_SOURCES[index].url, result.reason);
+        });
+        if (!rows.length) throw new Error('無法讀取公開庫存資料');
+        return buildStockQuantityIndex(rows);
+    }
+
     function getStockQuantity(productName) {
         const key = normalizeStockName(productName);
         return key && stockQuantityByName.has(key) ? stockQuantityByName.get(key) : null;
@@ -1385,9 +1426,13 @@
     }
 
     let inventory = [];
-    // 庫位資料只負責「在哪裡」；數量一律從既有的「庫存」表讀取，避免兩邊各自維護數量。
-    // 若 Supabase 中的表名不同，只需調整這個常數。
-    const STOCK_TABLE_NAME = '庫存';
+    // 庫位資料只負責「在哪裡」；數量一律讀取公開庫存查詢頁背後的 CSV。
+    // 三份資料會依品名加總，因此庫位圖可直接顯示目前總庫存。
+    const ONLINE_STOCK_SOURCES = [
+        { url: 'https://mingfonglpg-bit.github.io/-/frozen.csv', nameIndex: 0, quantityIndex: 1 },
+        { url: 'https://mingfonglpg-bit.github.io/-/chilled.csv', nameIndex: 0, quantityIndex: 1 },
+        { url: 'https://mingfonglpg-bit.github.io/-/beef.csv', nameIndex: 2, quantityIndex: 3 }
+    ];
     let stockQuantityByName = new Map();
     let supabaseClient = null;
     let isOfflineMode = false;
@@ -3681,13 +3726,12 @@
                 inventory = fetchedInventory;
                 localStorage.setItem(getLocalCacheKey(), JSON.stringify(inventory));
 
-                // 庫存表讀取失敗不影響庫位圖；僅將數量標示為「未對應」。
+                // 公開庫存資料讀取失敗不影響庫位圖；僅將數量標示為「未對應」。
                 try {
-                    const stockRows = getTableName() === STOCK_TABLE_NAME ? data : await backendSelectAll(STOCK_TABLE_NAME);
-                    stockQuantityByName = buildStockQuantityIndex(stockRows);
+                    stockQuantityByName = await loadOnlineStockQuantityIndex();
                 } catch (stockErr) {
                     stockQuantityByName = new Map();
-                    console.warn('庫存數量讀取失敗，仍顯示庫位資料：', stockErr.message || stockErr);
+                    console.warn('公開庫存數量讀取失敗，仍顯示庫位資料：', stockErr.message || stockErr);
                 }
             } catch (err) {
                 fetchError = err;
